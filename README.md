@@ -15,5 +15,5 @@ bun install
 Run the batch encoder:
 
 ```bash
-bun run index.ts
+bun run src/index.ts
 ```

@@ -2,41 +2,38 @@ const timeCodeFormat = /(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2}(?:\.\d+)?)/;
 const valueFormat = /(\d+(?:\.\d+)?)(s|ms|us)?/;
 
 function parseDuration(duration: string): number {
-  const timeCodeMatches = duration.match(timeCodeFormat);
+    const timeCodeMatches = duration.match(timeCodeFormat);
 
-  if (timeCodeMatches) {
-    const [, hoursMatch, minutesMatch, secondsMatch] = timeCodeMatches;
-    const hours = hoursMatch ? parseInt(hoursMatch) : 0;
-    const minutes = minutesMatch ? parseInt(minutesMatch) : 0;
-    const seconds = secondsMatch ? parseFloat(secondsMatch) : 0;
+    if (timeCodeMatches) {
+        const [, hoursMatch, minutesMatch, secondsMatch] = timeCodeMatches;
+        const hours = hoursMatch ? parseInt(hoursMatch) : 0;
+        const minutes = minutesMatch ? parseInt(minutesMatch) : 0;
+        const seconds = secondsMatch ? parseFloat(secondsMatch) : 0;
 
-    return hours * 3600 + minutes * 60 + seconds;
-  }
-
-  const valueMatches = duration.match(valueFormat);
-
-  if (valueMatches) {
-    const [, valueMatch, unit = "s"] = valueMatches;
-    const value = valueMatch ? parseFloat(valueMatch) : 0;
-
-    switch (unit) {
-      case "s":
-        return value;
-      case "ms":
-        return value / 1000;
-      case "us":
-        return value / 1000000;
+        return hours * 3600 + minutes * 60 + seconds;
     }
-  }
 
-  throw new Error(`Invalid duration: ${duration}`);
+    const valueMatches = duration.match(valueFormat);
+
+    if (valueMatches) {
+        const [, valueMatch, unit = "s"] = valueMatches;
+        const value = valueMatch ? parseFloat(valueMatch) : 0;
+
+        switch (unit) {
+            case "s":
+                return value;
+            case "ms":
+                return value / 1000;
+            case "us":
+                return value / 1000000;
+        }
+    }
+
+    throw new Error(`Invalid duration: ${duration}`);
 }
 
 function isValidDuration(duration: string): boolean {
-  return (
-    duration.match(timeCodeFormat) !== null ||
-    duration.match(valueFormat) !== null
-  );
+    return duration.match(timeCodeFormat) !== null || duration.match(valueFormat) !== null;
 }
 
 export { parseDuration, isValidDuration };
