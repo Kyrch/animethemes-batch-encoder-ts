@@ -9,9 +9,9 @@ function getFirstPassString(
     colorspaceArgs: string,
     seek: string,
     mode: keyof BitrateModes,
-    crf: number,
-    bitrate: number,
-    maxBitrate: number,
+    crf: number | null,
+    bitrate: number | null,
+    maxBitrate: number | null,
     filename: string,
     videoStreamArg: number,
     audioStreamArg: number,
@@ -21,13 +21,13 @@ function getFirstPassString(
     const firstPass = (() => {
         switch (mode) {
             case "VBR": {
-                return getBitrateModePass("VBR").firstPass(crf);
+                return getBitrateModePass("VBR").firstPass(crf!);
             }
             case "CBR": {
-                return getBitrateModePass("CBR").firstPass(bitrate, maxBitrate);
+                return getBitrateModePass("CBR").firstPass(bitrate!, maxBitrate!);
             }
             case "CQ": {
-                return getBitrateModePass("CQ").firstPass(crf, bitrate);
+                return getBitrateModePass("CQ").firstPass(crf!, bitrate!);
             }
             default:
                 throw new Error("Invalid mode");
@@ -48,9 +48,9 @@ async function getSecondPassString(
     colorspaceArgs: string,
     seek: string,
     mode: keyof BitrateModes,
-    crf: number,
-    bitrate: number,
-    maxBitrate: number,
+    crf: number | null,
+    bitrate: number | null,
+    maxBitrate: number | null,
     filename: string,
     videoStreamArg: number,
     audioStreamArg: number,
@@ -63,13 +63,13 @@ async function getSecondPassString(
     const secondPass = (() => {
         switch (mode) {
             case "VBR": {
-                return getBitrateModePass("VBR").secondPass(crf);
+                return getBitrateModePass("VBR").secondPass(crf!);
             }
             case "CBR": {
-                return getBitrateModePass("CBR").secondPass(bitrate, maxBitrate);
+                return getBitrateModePass("CBR").secondPass(bitrate!, maxBitrate!);
             }
             case "CQ": {
-                return getBitrateModePass("CQ").secondPass(crf, bitrate);
+                return getBitrateModePass("CQ").secondPass(crf!, bitrate!);
             }
             default:
                 throw new Error("Invalid mode");

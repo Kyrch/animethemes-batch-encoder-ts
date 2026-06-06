@@ -70,8 +70,8 @@ async function generate() {
 
         const customConfig = await promptCustomQuestions(config);
 
-        const bitrate = customConfig.cbrBitrates[0] ?? getCbrBitrate(videoStream);
-        const maxBitrate = customConfig.cbrMaxBitrates[0] ?? getCbrMaxBitrate(videoStream);
+        const bitrate = customConfig.cbrBitrates ?? getCbrBitrate(videoStream);
+        const maxBitrate = customConfig.cbrMaxBitrates ?? getCbrMaxBitrate(videoStream);
 
         console.log(`Generating commands for ${outputFile}...`);
         for (const mode of customConfig.encodingModes) {
@@ -79,16 +79,36 @@ async function generate() {
                 for (const crf of customConfig.crfs) {
                     for (const videoFilter of videoFilters) {
                         ffmpegCommands.push(
-                            getFirstPassString(colorspace, seekArgs, mode, crf, bitrate, maxBitrate, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads),
-                            await getSecondPassString(colorspace, seekArgs, mode, crf, bitrate, maxBitrate, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads, audioFilters, videoFilter, sourceMeta),
+                            getFirstPassString(colorspace, seekArgs, mode, crf, null, null, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads),
+                            await getSecondPassString(colorspace, seekArgs, mode, crf, null, null, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads, audioFilters, videoFilter, sourceMeta),
                         );
                     }
                 }
             }
 
-            // TODO: Do CBR
+            if (mode === "CBR") {
+                for (const cbrBitrate of bitrate) {
+                    for (const cbrMaxBitrate of maxBitrate) {
+                        for (const videoFilter of videoFilters) {
+                            ffmpegCommands.push(
+                                getFirstPassString(colorspace, seekArgs, mode, null, cbrBitrate, cbrMaxBitrate, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads),
+                                await getSecondPassString(colorspace, seekArgs, mode, null, cbrBitrate, cbrMaxBitrate, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads, audioFilters, videoFilter, sourceMeta),
+                            );
+                        }
+                    }
+                }
+            }
 
-            // TODO: Do CQ
+            if (mode === "CQ") {
+                for (const crf of customConfig.crfs) {
+                    for (const videoFilter of videoFilters) {
+                        ffmpegCommands.push(
+                            getFirstPassString(colorspace, seekArgs, mode, crf, bitrate[0]!, null, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads),
+                            await getSecondPassString(colorspace, seekArgs, mode, crf, bitrate[0]!, null, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads, audioFilters, videoFilter, sourceMeta),
+                        );
+                    }
+                }
+            }
         }
     }
 

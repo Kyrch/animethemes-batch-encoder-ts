@@ -36,14 +36,17 @@ async function promptCustomQuestions(config: Config): Promise<Config> {
             validate: (value) => value.split(",").every(v => /^-?\d+$/.test(v.trim())),
         });
 
-        const maxBitrate = await prompts.input({
-            message: "Max Bitrate Value",
-            default: config.cbrMaxBitrates.join(","),
-            validate: (value) => value.split(",").every(v => /^-?\d+$/.test(v.trim())),
-        });
-
         newConfig.cbrBitrates = bitrate.split(",").map(Number);
-        newConfig.cbrMaxBitrates = maxBitrate.split(",").map(Number);
+
+        if (newConfig.encodingModes.includes("CBR")) {
+            const maxBitrate = await prompts.input({
+                message: "Max Bitrate Value",
+                default: config.cbrMaxBitrates.join(","),
+                validate: (value) => value.split(",").every(v => /^-?\d+$/.test(v.trim())),
+            });
+
+            newConfig.cbrMaxBitrates = maxBitrate.split(",").map(Number);
+        }
     }
 
     return newConfig;

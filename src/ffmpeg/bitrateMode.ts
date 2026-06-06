@@ -22,16 +22,16 @@ type BitrateModes = {
 
 const bitRateModes = {
     VBR: {
-        firstPass: (crf: number) => `-crf ${String(crf)}`,
-        secondPass: (crf: number) => `-crf ${String(crf)}`,
+        firstPass: (crf: number) => `-crf ${crf}`,
+        secondPass: (crf: number) => `-crf ${crf}`,
     },
     CBR: {
-        firstPass: (bitrate: number, maxBitrate: number) => `-b:v ${String(bitrate)} -maxrate ${String(maxBitrate)}`,
-        secondPass: (bitrate: number, maxBitrate: number) => `-b:v ${String(bitrate)} -maxrate ${String(maxBitrate)} -bufsize 6000k`,
+        firstPass: (bitrate: number, maxBitrate: number) => `-b:v ${bitrate}k -maxrate ${maxBitrate}k`,
+        secondPass: (bitrate: number, maxBitrate: number) => `-b:v ${bitrate}k -maxrate ${maxBitrate}k -bufsize 6000k`,
     },
     CQ: {
-        firstPass: (crf: number, bitrate: number) => `-crf ${String(crf)} -b:v ${String(bitrate)}`,
-        secondPass: (crf: number, bitrate: number) => `-crf ${String(crf)} -b:v ${String(bitrate)}`,
+        firstPass: (crf: number, bitrate: number) => `-crf ${crf} -b:v ${bitrate}k`,
+        secondPass: (crf: number, bitrate: number) => `-crf ${crf} -b:v ${bitrate}k`,
     },
 } satisfies BitrateModes;
 
