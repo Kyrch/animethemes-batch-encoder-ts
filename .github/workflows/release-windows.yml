@@ -1,6 +1,7 @@
 name: Build Windows Executable
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -17,15 +18,20 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Build and upload executable
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
+          $ErrorActionPreference = "Stop"
+          $env:GH_TOKEN = "${{ github.token }}"
+
+          bun --version
+
           $PackageJson = Get-Content ./package.json | ConvertFrom-Json
 
           $PackageName = $PackageJson.name
@@ -44,7 +50,14 @@ jobs:
           $AppName = ($PackageName -split "/")[-1]
           $AppName = $AppName -replace "[^a-zA-Z0-9._-]", "-"
 
-          $ReleaseTag = "${{ github.event.release.tag_name }}"
+          $EventName = "${{ github.event_name }}"
+
+          if ($EventName -eq "release") {
+            $ReleaseTag = "${{ github.event.release.tag_name }}"
+          } else {
+            $ReleaseTag = "v$PackageVersion"
+          }
+
           $CleanReleaseTag = $ReleaseTag -replace "^v", ""
 
           if ($CleanReleaseTag -ne $PackageVersion) {
@@ -56,6 +69,17 @@ jobs:
 
           $OutputFile = "./dist/$AppName.exe"
 
-          bun build --compile --target=bun-windows-x64-baseline ./src/index.ts --outfile $OutputFile
+          bun build --compile --target=bun-windows-x64 ./src/index.ts --outfile $OutputFile
 
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Bun build failed."
+            exit 1
+          }
+
+          if (!(Test-Path $OutputFile)) {
+            Write-Error "Expected executable was not created: $OutputFile"
+            exit 1
+          }
+
+          gh release view $ReleaseTag | Out-Null
           gh release upload $ReleaseTag $OutputFile --clobber

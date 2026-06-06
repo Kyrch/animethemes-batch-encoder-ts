@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "bun run src/index.ts",
-    "build:win": "bun build src/index.ts --compile --target=bun-windows-x64-baseline --minify --outfile dist/batch-encoder.exe"
+    "build:win": "bun build src/index.ts --compile --target=bun-windows-x64 --minify --outfile dist/batch-encoder.exe"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.6.0",
