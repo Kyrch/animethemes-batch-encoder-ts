@@ -2,12 +2,13 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
 import { join, normalize } from "node:path";
+import packageJson from "../package.json";
 
-declare const VERSION: string;
+export const VERSION = packageJson.version;
 
-const APP_NAME = "batch-encoder";
-const OWNER = "AnimeThemes";
-const REPO = "animethemes-batch-encoder-ts";
+const APP_NAME = packageJson.name;
+const OWNER = packageJson.author;
+const REPO = packageJson.repo;
 
 const IS_WINDOWS = process.platform === "win32";
 
