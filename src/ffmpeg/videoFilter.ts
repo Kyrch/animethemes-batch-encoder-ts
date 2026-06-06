@@ -91,7 +91,7 @@ async function promptVideoFilters(config: Config): Promise<VideoFilter[]> {
         choices: videoFilters.map(filter => ({
             name: filter.label,
             value: filter,
-            checked: Object.values(config.videoFilters).includes(filter.filename)
+            checked: Object.keys(config.videoFilters).includes(filter.filename)
         })),
         required: true,
         
