@@ -2,12 +2,13 @@ import { Command } from "commander";
 import * as prompts from "@inquirer/prompts";
 import * as v from "valibot";
 import { generate } from "@/command/generate.ts";
+import { execute } from "./command/execute";
 
 const program = new Command();
 
 program
     .name("batch-encoder")
-    .version("1.0.0")
+    .version("3.0.0")
     .description("Generate/Execute FFmpeg commands for files in acting directory")
     .action(withErrorHandling(selectMode));
 
@@ -16,6 +17,12 @@ program
     .alias("g")
     .description("Generate commands and write to file")
     .action(withErrorHandling(generate));
+
+program
+    .command("execute")
+    .alias("e")
+    .description("Execute commands")
+    .action(withErrorHandling(execute));
 
 await program.parseAsync();
 
@@ -47,18 +54,12 @@ async function selectMode() {
                 name: "Generate commands",
                 value: generate,
             },
+            {
+                name: "Execute commands",
+                value: execute,
+            },
         ],
     });
 
     await runMode();
-}
-
-async function checkEnvironment() {
-    if (Bun.which("ffmpeg") === null) {
-        throw new Error("FFmpeg is required");
-    }
-
-    if (Bun.which("ffprobe") === null) {
-        throw new Error("FFprobe is required");
-    }
 }

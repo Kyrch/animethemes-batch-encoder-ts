@@ -1,9 +1,12 @@
 import * as v from "valibot";
+import * as prompts from "@inquirer/prompts";
 import { $ } from "bun";
-import { type MediaAnalysis, MediaAnalysisSchema, type MediaStream } from "./schema.ts";
+import { type AudioStream, type MediaAnalysis, MediaAnalysisSchema, type MediaStream, type VideoStream } from "./schema.ts";
 
 async function analyze(sourceFile: string): Promise<MediaAnalysis> {
-    const result = await $`ffprobe -v quiet -print_format json -show_streams ${sourceFile}`.json();
+    console.log(`Analyzing ${sourceFile}...`);
+
+    const result = await $`ffprobe -v quiet -print_format json -show_streams -show_format ${sourceFile}`.json();
 
     return v.parse(MediaAnalysisSchema, result);
 }
@@ -17,4 +20,34 @@ function streamToString(stream: MediaStream): string {
     }
 }
 
-export { analyze, streamToString };
+async function getVideoStream(videoStreams: VideoStream[]): Promise<VideoStream | undefined> {
+    return videoStreams.length > 1
+        ? await prompts.select({
+            message: "Select video stream",
+            choices: videoStreams
+                .map((stream) => ({
+                    value: stream,
+                    name: streamToString(stream),
+                })),
+        })
+        : videoStreams[0];
+}
+
+async function getAudioStream(audioStreams: AudioStream[]): Promise<AudioStream | undefined> {
+    return audioStreams.length > 1
+        ? await prompts.select({
+            message: "Select audio stream",
+            choices: audioStreams
+                .map((stream) => ({
+                    value: stream,
+                    name: streamToString(stream),
+                })),
+        })
+        : audioStreams[0];
+}
+
+export {
+    analyze,
+    getAudioStream,
+    getVideoStream,
+};

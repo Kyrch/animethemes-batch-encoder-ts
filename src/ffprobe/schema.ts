@@ -13,8 +13,10 @@ const VideoStreamSchema = v.object({
     width: v.number(),
     height: v.number(),
     pix_fmt: v.string(),
+    color_primaries: v.string(),
     color_range: v.string(),
     color_space: v.string(),
+    color_transfer: v.string(),
 });
 
 const AudioStreamSchema = v.object({
@@ -28,9 +30,15 @@ const AudioStreamSchema = v.object({
 
 const MediaStreamSchema = v.variant("codec_type", [VideoStreamSchema, AudioStreamSchema]);
 
+type AudioStream = v.InferOutput<typeof AudioStreamSchema>;
+type VideoStream = v.InferOutput<typeof VideoStreamSchema>
 type MediaStream = v.InferOutput<typeof MediaStreamSchema>;
 
 const MediaAnalysisSchema = v.object({
+    format: v.object({
+        duration: v.string(),
+        bit_rate: v.string(),
+    }),
     streams: v.pipe(
         v.array(StreamSchema),
         v.filterItems((item) => ["video", "audio"].includes(item.codec_type)),
@@ -40,4 +48,10 @@ const MediaAnalysisSchema = v.object({
 
 type MediaAnalysis = v.InferOutput<typeof MediaAnalysisSchema>;
 
-export { type MediaAnalysis, type MediaStream, MediaAnalysisSchema };
+export {
+    type AudioStream,
+    type MediaAnalysis,
+    type MediaStream,
+    type VideoStream,
+    MediaAnalysisSchema,
+};

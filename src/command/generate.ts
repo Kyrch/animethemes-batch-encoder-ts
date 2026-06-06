@@ -1,15 +1,20 @@
-import fs from "node:fs/promises";
+import fs, { writeFile } from "node:fs/promises";
 import * as prompts from "@inquirer/prompts";
-import { analyze, streamToString } from "@/ffprobe/analyze";
-import { isValidDuration, parseDuration } from "@/ffmpeg/duration";
-import { Presets, SingleBar } from "cli-progress";
+import { analyze, getAudioStream, getVideoStream } from "@/ffprobe/analyze";
+import { parseDuration, promptDuration } from "@/ffmpeg/duration";
 import { loadEnvironment } from "@/env";
-import * as ffmpeg from "@/ffmpeg/builder";
+import { getColorspaceArgs } from "@/ffmpeg/colorspace";
+import { getFirstPassString, getSecondPassString } from "@/ffmpeg/pass";
+import { getCbrBitrate, getCbrMaxBitrate } from "@/ffmpeg/bitrateMode";
+import { getAudioFiltersString, promptAudioFilters } from "@/ffmpeg/audioFilter";
+import { promptVideoFilters } from "@/ffmpeg/videoFilter";
+import { output, seek } from "@/ffmpeg/seek";
+import { promptCustomQuestions } from "@/ffmpeg/customization";
 
 async function generate() {
     const { config, workDir } = await loadEnvironment();
 
-    const allowedFileTypes = config.allowedFileTypes.split(",");
+    const allowedFileTypes = config.allowedFileTypes;
     const sourceFileCandidates = (await fs.readdir(workDir)).filter((file) =>
         allowedFileTypes.some((type) => file.endsWith(type)),
     );
@@ -26,97 +31,69 @@ async function generate() {
         })),
     });
 
+    // Analyze all the source files at once so the user can work freely.
+    const sourceFilesMeta = await Promise.all(
+        sourceFiles.map(async (sourceFile) => ({
+            name: sourceFile,
+            meta: await analyze(sourceFile),
+        }))
+    );
+
+    const ffmpegCommands: string[] = [];
     for (const sourceFile of sourceFiles) {
-        const sourceMeta = await analyze(sourceFile);
+        const sourceMeta = sourceFilesMeta.find(meta => meta.name === sourceFile)!.meta;
 
-        const videoStream = await prompts.select({
-            message: "Select video stream",
-            choices: sourceMeta.streams
-                .filter((stream) => stream.codec_type === "video")
-                .map((stream) => ({
-                    value: stream,
-                    name: streamToString(stream),
-                })),
-        });
+        const sourceMetaVideoStreams = sourceMeta.streams.filter((stream) => stream.codec_type === "video");
+        const sourceMetaAudioStreams = sourceMeta.streams.filter((stream) => stream.codec_type === "audio");
 
-        const audioStream = await prompts.select({
-            message: "Select audio stream",
-            choices: sourceMeta.streams
-                .filter((stream) => stream.codec_type === "audio")
-                .map((stream) => ({
-                    value: stream,
-                    name: streamToString(stream),
-                })),
-        });
+        const audioStream = await getAudioStream(sourceMetaAudioStreams);
+        const videoStream = await getVideoStream(sourceMetaVideoStreams);
 
-        function promptDuration(message: string) {
-            return prompts.input({
-                message,
-                validate: (value) =>
-                    isValidDuration(value) ||
-                    "Please enter a valid duration. See FFmpeg documentation for accepted formats: https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax",
-            });
+        if (!videoStream || !audioStream) {
+            throw new Error("Error on parsing video/audio stream.");
         }
 
-        const from = await promptDuration("Enter start time");
-        const to = await promptDuration("Enter end time");
+        const audioStreamIndex = sourceMeta.streams.indexOf(audioStream) - 1;
+        const videoStreamIndex = sourceMeta.streams.indexOf(videoStream);
 
-        const duration = parseDuration(to) - parseDuration(from);
+        const ss = await promptDuration("Enter start time");
+        const to = await promptDuration("Enter end time", ss);
+        const duration = parseDuration(to) - parseDuration(ss);
 
-        const outputFile = await prompts
-            .input({
-                message: "Enter output file name",
-            })
-            .then((fileName) => (fileName.endsWith(".webm") ? fileName : `${fileName}.webm`));
+        const outputFile = await output(ss);
 
-        const isSlowSeek = sourceFile.endsWith(".m2ts");
+        const colorspace = getColorspaceArgs(sourceMeta);
+        const seekArgs = seek(ss, to, sourceFile);
 
-        const ffmpegCommand = ffmpeg.toString([
-            isSlowSeek
-                ? [ffmpeg.input(sourceFile), ffmpeg.seek(from, to)]
-                : [ffmpeg.seek(from, to), ffmpeg.input(sourceFile)],
-            ffmpeg.map(videoStream.index),
-            ffmpeg.map(audioStream.index),
-            ffmpeg.output(outputFile),
-        ]);
+        const audioFilters = await getAudioFiltersString(seekArgs, audioStreamIndex, audioStream, await promptAudioFilters());
+        const videoFilters = await promptVideoFilters(config);
 
-        console.info(ffmpegCommand);
+        const customConfig = await promptCustomQuestions(config);
 
-        // const process = Bun.spawn({
-        //     cmd: ffmpegCommand,
-        //     stdout: "inherit",
-        //     stderr: "pipe",
-        // });
-        //
-        // const progress = new SingleBar({}, Presets.shades_grey);
-        //
-        // progress.start(Math.floor(duration * 100) / 100, 0);
-        //
-        // for await (const chunk of process.stderr) {
-        //     const decoder = new TextDecoder();
-        //     const line = decoder.decode(chunk);
-        //
-        //     const time = line.match(/time=(\d{2}:\d{2}:\d{2}\.\d{2})/)?.[1];
-        //     if (time) {
-        //         progress.update(Math.floor(parseDuration(time) * 100) / 100);
-        //     }
-        // }
-        //
-        // progress.update(duration);
-        // progress.stop();
+        const bitrate = customConfig.cbrBitrates[0] ?? getCbrBitrate(videoStream);
+        const maxBitrate = customConfig.cbrMaxBitrates[0] ?? getCbrMaxBitrate(videoStream);
+
+        console.log(`Generating commands for ${outputFile}...`);
+        for (const mode of customConfig.encodingModes) {
+            if (mode === "VBR") {
+                for (const crf of customConfig.crfs) {
+                    for (const videoFilter of videoFilters) {
+                        ffmpegCommands.push(
+                            getFirstPassString(colorspace, seekArgs, mode, crf, bitrate, maxBitrate, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads),
+                            await getSecondPassString(colorspace, seekArgs, mode, crf, bitrate, maxBitrate, outputFile, videoStreamIndex, audioStreamIndex, duration, customConfig.threads, audioFilters, videoFilter, sourceMeta),
+                        );
+                    }
+                }
+            }
+
+            // TODO: Do CBR
+
+            // TODO: Do CQ
+        }
     }
 
-    // const audioFilter = await select({
-    //   message: "Select an audio filter",
-    //   choices: audioFilters.map((audioFilter) => ({
-    //     value: audioFilter,
-    //     name: audioFilter.label,
-    //   })),
-    // });
-    //
-    // const audioFilterString = await audioFilter.promptToString();
-    //
-    // console.info(audioFilterString);
+    await writeFile("commands.txt", ffmpegCommands.join('\n'));
 }
 
 export { generate };
+

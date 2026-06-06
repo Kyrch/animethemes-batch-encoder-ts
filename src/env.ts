@@ -17,11 +17,10 @@ async function checkEncodingTools() {
     }
 
     const ffmpegVersionOutput = await $`ffmpeg -version`.text();
-    const ffmpegVersion = ffmpegVersionOutput.match(/^ffmpeg version (\d+\.\d+\.\d+)/)?.[1];
-    const [major] = ffmpegVersion?.split(".") ?? [];
+    const ffmpegVersion = ffmpegVersionOutput.match(/ffmpeg version (\d+\.\d+)/)?.[1];
 
-    if (major === undefined || parseInt(major) < 6) {
-        throw new Error("FFmpeg 6.0.0 or newer is required");
+    if (ffmpegVersion === undefined || parseInt(ffmpegVersion) < 7) {
+        throw new Error("FFmpeg 7.0.0 or newer is required");
     }
 
     if (Bun.which("ffprobe") === null) {

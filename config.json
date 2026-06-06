@@ -1,0 +1,16 @@
+{
+    "allowedFileTypes": [".avi", ".m2ts", ".mkv", ".mp4", ".wmv"],
+    "encodingModes": ["VBR", "CBR", "CQ"],
+    "crfs": [12, 15, 18, 21, 24],
+    "cbrBitrates": [5600],
+    "cbrMaxBitrates": [6400],
+    "threads": 4,
+    "limitSizeEnable": true,
+    "videoFilters": {
+        "": "",
+        "filtered": "hqdn3d=0:0:3:3,gradfun,unsharp",
+        "lightdenoise": "hqdn3d=0:0:3:3",
+        "heavydenoise": "hqdn3d=1.5:1.5:6:6",
+        "unsharp": "unsharp"
+    }
+}
