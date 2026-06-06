@@ -4,11 +4,15 @@ import { homedir, tmpdir } from "node:os";
 import { join, normalize } from "node:path";
 import packageJson from "../package.json";
 
-export const VERSION = packageJson.version;
+function getPackageString(value: unknown, fallback: string) {
+    return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
 
-const APP_NAME = packageJson.name;
-const OWNER = packageJson.author;
-const REPO = packageJson.repo;
+export const VERSION = getPackageString(packageJson.version, "0.0.0");
+
+const APP_NAME = getPackageString(packageJson.name, "batch-encoder");
+const OWNER = getPackageString(packageJson.author, "");
+const REPO = getPackageString((packageJson as { repo?: unknown }).repo, "");
 
 const IS_WINDOWS = process.platform === "win32";
 
@@ -77,23 +81,23 @@ $InstallDir = '${safeInstallDir}'
 $UserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 
 if ([string]::IsNullOrWhiteSpace($UserPath)) {
-  [Environment]::SetEnvironmentVariable('Path', $InstallDir, 'User')
-  exit 0
+    [Environment]::SetEnvironmentVariable('Path', $InstallDir, 'User')
+    exit 0
 }
 
 $Parts = $UserPath -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 
 if ($Parts -notcontains $InstallDir) {
-  $NewPath = ($Parts + $InstallDir) -join ';'
-  [Environment]::SetEnvironmentVariable('Path', $NewPath, 'User')
+    $NewPath = ($Parts + $InstallDir) -join ';'
+    [Environment]::SetEnvironmentVariable('Path', $NewPath, 'User')
 }
 `;
 
     await runPowerShell(script);
 }
 
-export async function ensureInstalled() {
-    if (!IS_WINDOWS) return;
+export async function ensureInstalled(): Promise<boolean> {
+    if (!IS_WINDOWS) return false;
 
     await mkdir(INSTALL_DIR, { recursive: true });
 
@@ -105,13 +109,21 @@ export async function ensureInstalled() {
 
         console.log(`Installed at: ${INSTALL_EXE}`);
         console.log(`Open a new terminal and run: ${APP_NAME} --help`);
-        return;
+
+        return true;
     }
 
     await addInstallDirToPath();
+
+    return false;
 }
 
-async function getLatestRelease() {
+async function getLatestRelease(): Promise<GitHubRelease | null> {
+    if (!OWNER || !REPO) {
+        console.log("GitHub owner or repository is missing in package.json.");
+        return null;
+    }
+
     const response = await fetch(
         `https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`,
         {
@@ -122,7 +134,10 @@ async function getLatestRelease() {
         },
     );
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+        console.log(`Update check failed: ${response.status} ${response.statusText}`);
+        return null;
+    }
 
     return response.json() as Promise<GitHubRelease>;
 }
@@ -135,7 +150,7 @@ async function downloadFile(url: string, destination: string) {
     });
 
     if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`);
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
     }
 
     await Bun.write(destination, await response.arrayBuffer());
@@ -143,21 +158,53 @@ async function downloadFile(url: string, destination: string) {
 
 async function replaceInstalledExe(sourceExe: string) {
     const ps1Path = join(tmpdir(), `${APP_NAME}-update-${Date.now()}.ps1`);
+    const logPath = join(tmpdir(), `${APP_NAME}-update.log`);
+
+    const safeSource = escapePowerShellString(sourceExe);
+    const safeDestination = escapePowerShellString(INSTALL_EXE);
+    const safeLog = escapePowerShellString(logPath);
 
     const script = `
-param(
-  [int]$ProcessIdToWait,
-  [string]$Source,
-  [string]$Destination
-)
+$ErrorActionPreference = 'Continue'
 
-Wait-Process -Id $ProcessIdToWait -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 500
+$ProcessIdToWait = ${process.pid}
+$Source = '${safeSource}'
+$Destination = '${safeDestination}'
+$Log = '${safeLog}'
 
-Copy-Item -LiteralPath $Source -Destination $Destination -Force
+"Starting update..." | Out-File -FilePath $Log -Encoding UTF8
+"Source: $Source" | Out-File -FilePath $Log -Append -Encoding UTF8
+"Destination: $Destination" | Out-File -FilePath $Log -Append -Encoding UTF8
+"Waiting for process: $ProcessIdToWait" | Out-File -FilePath $Log -Append -Encoding UTF8
 
-Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+try {
+    Wait-Process -Id $ProcessIdToWait -ErrorAction SilentlyContinue
+} catch {
+    "Wait-Process failed: $($_.Exception.Message)" | Out-File -FilePath $Log -Append -Encoding UTF8
+}
+
+Start-Sleep -Milliseconds 800
+
+for ($i = 1; $i -le 20; $i++) {
+    try {
+        "Copy attempt $i..." | Out-File -FilePath $Log -Append -Encoding UTF8
+
+        Copy-Item -LiteralPath $Source -Destination $Destination -Force -ErrorAction Stop
+
+        "Copy succeeded." | Out-File -FilePath $Log -Append -Encoding UTF8
+
+        Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+
+        exit 0
+    } catch {
+        "Copy failed: $($_.Exception.Message)" | Out-File -FilePath $Log -Append -Encoding UTF8
+        Start-Sleep -Milliseconds 500
+    }
+}
+
+"Update failed after all attempts." | Out-File -FilePath $Log -Append -Encoding UTF8
+exit 1
 `;
 
     await Bun.write(ps1Path, script);
@@ -170,9 +217,6 @@ Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
             "Bypass",
             "-File",
             ps1Path,
-            String(process.pid),
-            sourceExe,
-            INSTALL_EXE,
         ],
         {
             detached: true,
@@ -184,36 +228,42 @@ Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
     child.unref();
 
     console.log("Update downloaded. Please run the command again.");
+    console.log(`Update log: ${logPath}`);
+
     process.exit(0);
 }
 
-export async function update(options?: { silent?: boolean }) {
-    if (!IS_WINDOWS) return;
+export async function update() {
+    if (!IS_WINDOWS) {
+        console.log("Update is only available on Windows.");
+        return;
+    }
 
     const release = await getLatestRelease();
 
     if (!release) {
-        if (!options?.silent) console.log("Could not check for updates.");
+        console.log("Could not check for updates.");
         return;
     }
 
     if (sameVersion(release.tag_name, VERSION)) {
-        if (!options?.silent) console.log("No update available.");
+        console.log("No update available.");
         return;
     }
 
     const asset = release.assets.find(asset => asset.name === `${APP_NAME}.exe`);
 
     if (!asset) {
-        if (!options?.silent) {
-            console.log("No Windows executable found in the latest release.");
-        }
+        console.log("No Windows executable found in the latest release.");
         return;
     }
 
     console.log(`Updating from ${VERSION} to ${release.tag_name}...`);
 
-    const tempExe = join(tmpdir(), `${APP_NAME}-${cleanVersion(release.tag_name)}.exe`);
+    const tempExe = join(
+        tmpdir(),
+        `${APP_NAME}-${cleanVersion(release.tag_name)}.exe`,
+    );
 
     await downloadFile(asset.browser_download_url, tempExe);
     await replaceInstalledExe(tempExe);

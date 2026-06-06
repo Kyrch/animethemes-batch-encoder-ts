@@ -5,12 +5,10 @@ import { generate } from "@/command/generate.ts";
 import { execute } from "@/command/execute";
 import { ensureInstalled, update, VERSION } from "@/system";
 
-await ensureInstalled();
+const installedNow = await ensureInstalled();
 
-const firstCommand = process.argv[2];
-
-if (firstCommand !== "update") {
-    await update({ silent: true }).catch(() => {});
+if (installedNow) {
+    process.exit(0);
 }
 
 const program = new Command();
