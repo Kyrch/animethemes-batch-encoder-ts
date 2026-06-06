@@ -3,7 +3,9 @@ import * as prompts from "@inquirer/prompts";
 import * as v from "valibot";
 import { generate } from "@/command/generate.ts";
 import { execute } from "@/command/execute";
-import { ensureInstalled, update, VERSION } from "@/system";
+import { ensureInstalled, update } from "@/system";
+
+declare const VERSION: string;
 
 await ensureInstalled();
 

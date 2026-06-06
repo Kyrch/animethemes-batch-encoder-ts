@@ -2,17 +2,10 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
 import { join, normalize } from "node:path";
-import packageJson from "../package.json";
 
-const PACKAGE_NAME = packageJson.name;
+declare const VERSION: string;
 
-export const VERSION = packageJson.version ?? "0.0.0";
-
-const APP_NAME = PACKAGE_NAME
-    .split("/")
-    .pop()
-    ?.replace(/[^a-zA-Z0-9._-]/g, "-")!;
-
+const APP_NAME = "batch-encoder";
 const OWNER = "AnimeThemes";
 const REPO = "animethemes-batch-encoder-ts";
 

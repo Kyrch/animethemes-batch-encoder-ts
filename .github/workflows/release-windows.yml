@@ -69,7 +69,7 @@ jobs:
 
           $OutputFile = "./dist/$AppName.exe"
 
-          bun build --compile --target=bun-windows-x64 ./src/index.ts --outfile $OutputFile
+          bun build --compile --target=bun-windows-x64 ./src/index.ts --outfile $OutputFile --define VERSION='\"'$npm_package_version'\"'
 
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Bun build failed."
