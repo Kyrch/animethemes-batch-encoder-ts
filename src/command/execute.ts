@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import chalk from "chalk";
 import { existsSync } from "node:fs";
 
 type ExecuteArgs = {
@@ -16,7 +17,7 @@ async function execute(args: ExecuteArgs) {
         .map(command => command.trim())
         .filter(command => command.length > 0);
 
-    console.info(`Reading ${commands.length} commands from file '${args.file}'...`);
+    console.info(chalk.white(`Reading ${commands.length} commands from file '${args.file}'...`));
 
     for (const command of commands) {
         await $`${{ raw: command }}`;
