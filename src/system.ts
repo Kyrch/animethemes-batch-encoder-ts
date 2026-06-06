@@ -157,69 +157,90 @@ async function downloadFile(url: string, destination: string) {
 }
 
 async function replaceInstalledExe(sourceExe: string) {
-    const cmdPath = join(tmpdir(), `${APP_NAME}-update-${Date.now()}.cmd`);
+    const ps1Path = join(tmpdir(), `${APP_NAME}-update-${Date.now()}.ps1`);
     const logPath = join(tmpdir(), `${APP_NAME}-update.log`);
 
-    const script = `@echo off
-setlocal
+    const safeSource = escapePowerShellString(sourceExe);
+    const safeDestination = escapePowerShellString(INSTALL_EXE);
+    const safeLog = escapePowerShellString(logPath);
 
-set "SOURCE=${sourceExe}"
-set "DESTINATION=${INSTALL_EXE}"
-set "LOG=${logPath}"
-set "ATTEMPT=0"
+    const script = `
+$ErrorActionPreference = 'Continue'
 
-echo Starting update... > "%LOG%"
-echo Source: %SOURCE% >> "%LOG%"
-echo Destination: %DESTINATION% >> "%LOG%"
-echo Waiting for current process to exit... >> "%LOG%"
+$Source = '${safeSource}'
+$Destination = '${safeDestination}'
+$Log = '${safeLog}'
+$ProcessIdToWait = ${process.pid}
 
-timeout /t 2 /nobreak >nul
+"Starting update..." | Out-File -FilePath $Log -Encoding UTF8
+"Source: $Source" | Out-File -FilePath $Log -Append -Encoding UTF8
+"Destination: $Destination" | Out-File -FilePath $Log -Append -Encoding UTF8
+"Waiting for process: $ProcessIdToWait" | Out-File -FilePath $Log -Append -Encoding UTF8
 
-:retry
-set /a ATTEMPT+=1
+try {
+    Wait-Process -Id $ProcessIdToWait -ErrorAction SilentlyContinue
+} catch {
+    "Wait-Process failed: $($_.Exception.Message)" | Out-File -FilePath $Log -Append -Encoding UTF8
+}
 
-echo Copy attempt %ATTEMPT%... >> "%LOG%"
+Start-Sleep -Seconds 2
 
-copy /Y "%SOURCE%" "%DESTINATION%" >> "%LOG%" 2>&1
+for ($i = 1; $i -le 30; $i++) {
+    "Copy attempt $i..." | Out-File -FilePath $Log -Append -Encoding UTF8
 
-if not errorlevel 1 (
-    echo Copy succeeded. >> "%LOG%"
-    del /F /Q "%SOURCE%" >> "%LOG%" 2>&1
-    del /F /Q "%~f0" >nul 2>&1
-    exit /b 0
-)
+    try {
+        if (!(Test-Path -LiteralPath $Source)) {
+            "Source file does not exist." | Out-File -FilePath $Log -Append -Encoding UTF8
+            exit 1
+        }
 
-echo Copy failed. >> "%LOG%"
+        Copy-Item -LiteralPath $Source -Destination $Destination -Force -ErrorAction Stop
 
-if %ATTEMPT% GEQ 30 (
-    echo Update failed after 30 attempts. >> "%LOG%"
-    exit /b 1
-)
+        "Copy succeeded." | Out-File -FilePath $Log -Append -Encoding UTF8
 
-timeout /t 1 /nobreak >nul
-goto retry
+        Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+
+        exit 0
+    } catch {
+        "Copy failed: $($_.Exception.Message)" | Out-File -FilePath $Log -Append -Encoding UTF8
+        Start-Sleep -Seconds 1
+    }
+}
+
+"Update failed after all attempts." | Out-File -FilePath $Log -Append -Encoding UTF8
+exit 1
 `;
 
-    await Bun.write(cmdPath, script);
+    await Bun.write(ps1Path, script);
 
-    const safeCmdPath = cmdPath.replace(/"/g, '""');
+    await new Promise<void>((resolve, reject) => {
+        const launcher = spawn(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                `Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','${escapePowerShellString(ps1Path)}'`,
+            ],
+            {
+                windowsHide: true,
+                stdio: "ignore",
+            },
+        );
 
-    const child = spawn(
-        "cmd.exe",
-        [
-            "/d",
-            "/s",
-            "/c",
-            `start "" /min "${safeCmdPath}"`,
-        ],
-        {
-            detached: true,
-            stdio: "ignore",
-            windowsHide: true,
-        },
-    );
+        launcher.on("error", reject);
 
-    child.unref();
+        launcher.on("close", code => {
+            if (code === 0) {
+                resolve();
+                return;
+            }
+
+            reject(new Error(`Updater launcher exited with code ${code}`));
+        });
+    });
 
     console.log("Update downloaded. Please run the command again.");
     console.log(`Update log: ${logPath}`);
