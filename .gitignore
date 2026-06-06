@@ -37,5 +37,6 @@ animethemes-batch-encoder
 animethemes-webm-verifier
 *.mkv
 *.mp4
+*.m2ts
 *.txt
 commands.txt

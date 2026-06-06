@@ -13,10 +13,10 @@ const VideoStreamSchema = v.object({
     width: v.number(),
     height: v.number(),
     pix_fmt: v.string(),
-    color_primaries: v.string(),
-    color_range: v.string(),
-    color_space: v.string(),
-    color_transfer: v.string(),
+    color_primaries: v.optional(v.string()),
+    color_range: v.optional(v.string()),
+    color_space: v.optional(v.string()),
+    color_transfer: v.optional(v.string()),
 });
 
 const AudioStreamSchema = v.object({
