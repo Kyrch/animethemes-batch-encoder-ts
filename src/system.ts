@@ -157,66 +157,60 @@ async function downloadFile(url: string, destination: string) {
 }
 
 async function replaceInstalledExe(sourceExe: string) {
-    const ps1Path = join(tmpdir(), `${APP_NAME}-update-${Date.now()}.ps1`);
+    const cmdPath = join(tmpdir(), `${APP_NAME}-update-${Date.now()}.cmd`);
     const logPath = join(tmpdir(), `${APP_NAME}-update.log`);
 
-    const safeSource = escapePowerShellString(sourceExe);
-    const safeDestination = escapePowerShellString(INSTALL_EXE);
-    const safeLog = escapePowerShellString(logPath);
+    const script = `@echo off
+setlocal
 
-    const script = `
-$ErrorActionPreference = 'Continue'
+set "SOURCE=${sourceExe}"
+set "DESTINATION=${INSTALL_EXE}"
+set "LOG=${logPath}"
+set "ATTEMPT=0"
 
-$ProcessIdToWait = ${process.pid}
-$Source = '${safeSource}'
-$Destination = '${safeDestination}'
-$Log = '${safeLog}'
+echo Starting update... > "%LOG%"
+echo Source: %SOURCE% >> "%LOG%"
+echo Destination: %DESTINATION% >> "%LOG%"
+echo Waiting for current process to exit... >> "%LOG%"
 
-"Starting update..." | Out-File -FilePath $Log -Encoding UTF8
-"Source: $Source" | Out-File -FilePath $Log -Append -Encoding UTF8
-"Destination: $Destination" | Out-File -FilePath $Log -Append -Encoding UTF8
-"Waiting for process: $ProcessIdToWait" | Out-File -FilePath $Log -Append -Encoding UTF8
+timeout /t 2 /nobreak >nul
 
-try {
-    Wait-Process -Id $ProcessIdToWait -ErrorAction SilentlyContinue
-} catch {
-    "Wait-Process failed: $($_.Exception.Message)" | Out-File -FilePath $Log -Append -Encoding UTF8
-}
+:retry
+set /a ATTEMPT+=1
 
-Start-Sleep -Milliseconds 800
+echo Copy attempt %ATTEMPT%... >> "%LOG%"
 
-for ($i = 1; $i -le 20; $i++) {
-    try {
-        "Copy attempt $i..." | Out-File -FilePath $Log -Append -Encoding UTF8
+copy /Y "%SOURCE%" "%DESTINATION%" >> "%LOG%" 2>&1
 
-        Copy-Item -LiteralPath $Source -Destination $Destination -Force -ErrorAction Stop
+if not errorlevel 1 (
+    echo Copy succeeded. >> "%LOG%"
+    del /F /Q "%SOURCE%" >> "%LOG%" 2>&1
+    del /F /Q "%~f0" >nul 2>&1
+    exit /b 0
+)
 
-        "Copy succeeded." | Out-File -FilePath $Log -Append -Encoding UTF8
+echo Copy failed. >> "%LOG%"
 
-        Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+if %ATTEMPT% GEQ 30 (
+    echo Update failed after 30 attempts. >> "%LOG%"
+    exit /b 1
+)
 
-        exit 0
-    } catch {
-        "Copy failed: $($_.Exception.Message)" | Out-File -FilePath $Log -Append -Encoding UTF8
-        Start-Sleep -Milliseconds 500
-    }
-}
-
-"Update failed after all attempts." | Out-File -FilePath $Log -Append -Encoding UTF8
-exit 1
+timeout /t 1 /nobreak >nul
+goto retry
 `;
 
-    await Bun.write(ps1Path, script);
+    await Bun.write(cmdPath, script);
+
+    const safeCmdPath = cmdPath.replace(/"/g, '""');
 
     const child = spawn(
-        "powershell.exe",
+        "cmd.exe",
         [
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            ps1Path,
+            "/d",
+            "/s",
+            "/c",
+            `start "" /min "${safeCmdPath}"`,
         ],
         {
             detached: true,
