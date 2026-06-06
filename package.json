@@ -1,6 +1,6 @@
 {
   "name": "batch-encoder",
-  "version": "1.0",
+  "version": "1.0.1",
   "author": "AnimeThemes",
   "repo": "animethemes-batch-encoder-ts",
   "module": "src/index.ts",
