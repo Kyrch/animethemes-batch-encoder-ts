@@ -2,9 +2,10 @@ import * as v from "valibot";
 import * as prompts from "@inquirer/prompts";
 import { $ } from "bun";
 import { type AudioStream, type MediaAnalysis, MediaAnalysisSchema, type MediaStream, type VideoStream } from "./schema.ts";
+import chalk from "chalk";
 
 async function analyze(sourceFile: string): Promise<MediaAnalysis> {
-    console.log(`Analyzing ${sourceFile}...`);
+    console.log(chalk.white(`Analyzing ${sourceFile}...`));
 
     const result = await $`ffprobe -v quiet -print_format json -show_streams -show_format ${sourceFile}`.json();
 
