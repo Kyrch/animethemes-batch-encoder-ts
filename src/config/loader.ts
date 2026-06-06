@@ -1,7 +1,6 @@
 import type { BunFile } from "bun";
 import { type Config, getDefaultConfig, parseConfig } from "./schema.ts";
 import * as os from "node:os";
-import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as v from "valibot";
 
@@ -17,16 +16,11 @@ async function loadConfig(workDir: string, configfile: string): Promise<Config> 
 }
 
 async function getLocalConfigFile(workDir: string, configfile: string): Promise<BunFile | null> {
-    for (
-        let currentDir = path.resolve(workDir);
-        await fs.exists(currentDir);
-        currentDir = path.resolve(currentDir, "..")
-    ) {
-        const configFile = Bun.file(`${currentDir}/${configfile}`);
+    const configPath = path.join(workDir, configfile);
+    const configFile = Bun.file(configPath);
 
-        if (await configFile.exists()) {
-            return configFile;
-        }
+    if (await configFile.exists()) {
+        return configFile;
     }
 
     return null;

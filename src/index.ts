@@ -22,30 +22,20 @@ program
     .action(withErrorHandling(selectMode));
 
 program
+    .option("--config-file <file>", "Name of config file", "config.json")
+    .option("-f, --file <file>", "Name of file commands are written to", "commands.txt");
+
+program
     .command("generate")
     .alias("g")
     .description("Generate commands and write to file")
-    .action((args) => withErrorHandling(() => generate(args))());
+    .action((args) => withErrorHandling(() => generate({...args, ...program.opts()}))());
 
 program
     .command("execute")
     .alias("e")
     .description("Execute commands")
-    .action((args) => withErrorHandling(() => execute(args))());
-
-program
-    .option(
-        "-f, --file <file>",
-        "Name of file commands are written to or execute from",
-        "commands.txt"
-    );
-
-program
-    .option(
-        "--configfile <file>",
-        "Name of config file (default: config.json)",
-        "config.json"
-    );
+    .action((args) => withErrorHandling(() => execute({...args, ...program.opts()}))());
 
 program
     .command("update")
