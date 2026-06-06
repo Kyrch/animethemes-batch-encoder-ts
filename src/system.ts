@@ -46,11 +46,15 @@ function sameVersion(a: string, b: string) {
     return cleanVersion(a) === cleanVersion(b);
 }
 
-function runPowerShell(script: string, args: string[] = []) {
+function escapePowerShellString(value: string) {
+    return value.replace(/'/g, "''");
+}
+
+function runPowerShell(script: string) {
     return new Promise<void>((resolve, reject) => {
         const child = spawn(
             "powershell.exe",
-            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script, ...args],
+            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
             { windowsHide: true },
         );
 
@@ -61,31 +65,37 @@ function runPowerShell(script: string, args: string[] = []) {
         });
 
         child.on("close", code => {
-            if (code === 0) resolve();
-            else reject(new Error(stderr || `PowerShell exited with code ${code}`));
+            if (code === 0) {
+                resolve();
+                return;
+            }
+
+            reject(new Error(stderr || `PowerShell exited with code ${code}`));
         });
     });
 }
 
 async function addInstallDirToPath() {
+    const safeInstallDir = escapePowerShellString(INSTALL_DIR);
+
     const script = `
-$InstallDir = $args[0]
-$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$InstallDir = '${safeInstallDir}'
+$UserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 
 if ([string]::IsNullOrWhiteSpace($UserPath)) {
-  [Environment]::SetEnvironmentVariable("Path", $InstallDir, "User")
+  [Environment]::SetEnvironmentVariable('Path', $InstallDir, 'User')
   exit 0
 }
 
-$Parts = $UserPath -split ";" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+$Parts = $UserPath -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 
 if ($Parts -notcontains $InstallDir) {
-  $NewPath = ($Parts + $InstallDir) -join ";"
-  [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
+  $NewPath = ($Parts + $InstallDir) -join ';'
+  [Environment]::SetEnvironmentVariable('Path', $NewPath, 'User')
 }
 `;
 
-    await runPowerShell(script, [INSTALL_DIR]);
+    await runPowerShell(script);
 }
 
 export async function ensureInstalled() {
