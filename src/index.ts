@@ -2,13 +2,22 @@ import { Command } from "commander";
 import * as prompts from "@inquirer/prompts";
 import * as v from "valibot";
 import { generate } from "@/command/generate.ts";
-import { execute } from "./command/execute";
+import { execute } from "@/command/execute";
+import { ensureInstalled, update, VERSION } from "@/system";
+
+await ensureInstalled();
+
+const firstCommand = process.argv[2];
+
+if (firstCommand !== "update") {
+    await update({ silent: true }).catch(() => {});
+}
 
 const program = new Command();
 
 program
     .name("batch-encoder")
-    .version("3.0.0")
+    .version(VERSION)
     .description("Generate/Execute FFmpeg commands for files in acting directory")
     .action(withErrorHandling(selectMode));
 
@@ -37,6 +46,13 @@ program
         "Name of config file (default: config.json)",
         "config.json"
     );
+
+program
+    .command("update")
+    .description("Update the CLI to the latest version")
+    .action(async () => {
+        await update();
+    });
 
 await program.parseAsync();
 

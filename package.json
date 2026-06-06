@@ -1,10 +1,12 @@
 {
-  "name": "batch-encoder-bun",
+  "name": "batch-encoder",
+  "version": "1.0",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "build:win": "bun build src/index.ts --compile --target=bun-windows-x64-baseline --minify --outfile dist/batch-encoder.exe"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.6.0",
