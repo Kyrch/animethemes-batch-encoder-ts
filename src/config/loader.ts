@@ -5,10 +5,10 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as v from "valibot";
 
-async function loadConfig(workDir: string): Promise<Config> {
+async function loadConfig(workDir: string, configfile: string): Promise<Config> {
     const [localConfig, globalConfig] = await Promise.all([
-        getLocalConfigFile(workDir).then((file) => file && loadConfigFromFile(file)),
-        getGlobalConfigFile().then((file) => file && loadConfigFromFile(file)),
+        getLocalConfigFile(workDir, configfile).then((file) => file && loadConfigFromFile(file)),
+        getGlobalConfigFile(configfile).then((file) => file && loadConfigFromFile(file)),
     ]);
 
     const configs = [globalConfig, localConfig].filter((config) => config !== null);
@@ -16,13 +16,13 @@ async function loadConfig(workDir: string): Promise<Config> {
     return mergeConfigs([getDefaultConfig(), ...configs]);
 }
 
-async function getLocalConfigFile(workDir: string): Promise<BunFile | null> {
+async function getLocalConfigFile(workDir: string, configfile: string): Promise<BunFile | null> {
     for (
         let currentDir = path.resolve(workDir);
         await fs.exists(currentDir);
         currentDir = path.resolve(currentDir, "..")
     ) {
-        const configFile = Bun.file(`${currentDir}/config.json`);
+        const configFile = Bun.file(`${currentDir}/${configfile}`);
 
         if (await configFile.exists()) {
             return configFile;
@@ -32,9 +32,9 @@ async function getLocalConfigFile(workDir: string): Promise<BunFile | null> {
     return null;
 }
 
-async function getGlobalConfigFile(): Promise<BunFile | null> {
+async function getGlobalConfigFile(configfile: string): Promise<BunFile | null> {
     const homeDir = os.homedir();
-    const configFile = Bun.file(`${homeDir}/.config/batch-encoder/config.json`);
+    const configFile = Bun.file(`${homeDir}/.config/batch-encoder/${configfile}`);
 
     if (await configFile.exists()) {
         return configFile;

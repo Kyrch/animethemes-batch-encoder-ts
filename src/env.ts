@@ -1,12 +1,12 @@
 import { loadConfig } from "@/config/loader.ts";
 import { $ } from "bun";
 
-async function loadEnvironment() {
+async function loadEnvironment(configfile: string) {
     await checkEncodingTools();
 
     const workDir = process.cwd();
 
-    const config = await loadConfig(workDir);
+    const config = await loadConfig(workDir, configfile);
 
     return { workDir, config };
 }

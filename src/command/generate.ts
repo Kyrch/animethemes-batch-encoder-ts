@@ -11,8 +11,13 @@ import { promptVideoFilters } from "@/ffmpeg/videoFilter";
 import { output, seek } from "@/ffmpeg/seek";
 import { promptCustomQuestions } from "@/ffmpeg/customization";
 
-async function generate() {
-    const { config, workDir } = await loadEnvironment();
+type GenerateArgs = {
+    file: string;
+    configfile: string;
+}
+
+async function generate(args: GenerateArgs) {
+    const { config, workDir } = await loadEnvironment(args.configfile);
 
     const allowedFileTypes = config.allowedFileTypes;
     const sourceFileCandidates = (await fs.readdir(workDir)).filter((file) =>
@@ -112,7 +117,7 @@ async function generate() {
         }
     }
 
-    await writeFile("commands.txt", ffmpegCommands.join('\n'));
+    await writeFile(args.file, ffmpegCommands.join('\n'));
 }
 
 export { generate };

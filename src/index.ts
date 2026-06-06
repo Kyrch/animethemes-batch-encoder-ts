@@ -16,13 +16,27 @@ program
     .command("generate")
     .alias("g")
     .description("Generate commands and write to file")
-    .action(withErrorHandling(generate));
+    .action((args) => withErrorHandling(() => generate(args))());
 
 program
     .command("execute")
     .alias("e")
     .description("Execute commands")
-    .action(withErrorHandling(execute));
+    .action((args) => withErrorHandling(() => execute(args))());
+
+program
+    .option(
+        "-f, --file <file>",
+        "Name of file commands are written to or execute from",
+        "commands.txt"
+    );
+
+program
+    .option(
+        "--configfile <file>",
+        "Name of config file (default: config.json)",
+        "config.json"
+    );
 
 await program.parseAsync();
 
@@ -61,5 +75,5 @@ async function selectMode() {
         ],
     });
 
-    await runMode();
+    await runMode(program.opts());
 }
