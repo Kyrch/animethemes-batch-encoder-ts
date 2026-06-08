@@ -37,9 +37,7 @@ program
 program
     .command("update")
     .description("Update the CLI to the latest version")
-    .action(async () => {
-        await update();
-    });
+    .action(async () => await update());
 
 await program.parseAsync();
 
@@ -74,6 +72,10 @@ async function selectMode() {
             {
                 name: "Execute commands",
                 value: execute,
+            },
+            {
+                name: "Update Batch Encoder",
+                value: update,
             },
         ],
     });
