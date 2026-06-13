@@ -1,0 +1,30 @@
+name: Bug report
+about: Create a report to help us improve
+title: ''
+labels: bug
+assignees: ''
+type: Bug
+body:
+  - type: input
+    id: script-version
+    attributees:
+      label: Batch Encoder Version
+      description: Please provide the full version of the batch encoder you have installed by running (batch-encoder -V).
+      placeholder: 1.3.1
+    validations:
+      required: true
+  - type: input
+    id: ffmpeg-version
+    attributes:
+      label: FFmpeg Version
+      description: Please provide the full version of the FFmpeg you have installed by running (ffmpeg --version).
+      placeholder: 8.1.1
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please provide bug details and steps to reproduce.
+    validations:
+      required: true
