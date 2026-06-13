@@ -31,6 +31,9 @@ batch-encoder [generate | g] [execute | e] [install] [update] [--file [FILE]] [-
 `generate` generates commands from input files in the current directory.
 The user will be prompted for values that are not determined programmatically, such as inclusion/exclusion of a source file candidate, start time, end time, output file name and new audio filters.
 
+> [!TIP]
+> When prompting the start/end times and output filename, you can split it by comma to generate multiple outputs.
+
 `execute` executes commands from file in the current directory in parallel.
 
 `install` will put the script in your home directory and add `batch-encoder` to your Windows PATH.

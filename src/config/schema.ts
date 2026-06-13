@@ -25,7 +25,7 @@ function parseConfig(config: Config): Config {
     return v.parse(ConfigSchema, config);
 }
 
-function getDefaultConfig(): Config {
+function getDefaultConfig(): v.InferDefaults<typeof ConfigSchema> & Config {
     return v.getDefaults(ConfigSchema);
 }
 

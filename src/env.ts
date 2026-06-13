@@ -29,4 +29,4 @@ async function checkEncodingTools() {
     }
 }
 
-export { loadEnvironment };
+export { loadEnvironment, checkEncodingTools };
