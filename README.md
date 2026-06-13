@@ -23,7 +23,7 @@ Ideally we are iterating over a combination of filters and settings, picking the
 ### Usage
 
 ```
-batch-encoder [generate | g] [execute | e] [install] [update] [--file [FILE]] [--config-file [FILE]]
+batch-encoder [generate | g] [execute | e] [validate] [install] [update] [--file [FILE]] [--config-file [FILE]]
 ```
 
 #### Mode
@@ -35,6 +35,8 @@ The user will be prompted for values that are not determined programmatically, s
 > When prompting the start/end times and output filename, you can split it by comma to generate multiple outputs.
 
 `execute` executes commands from file in the current directory in parallel.
+
+`validate` verifies WebM(s) Against AnimeThemes Encoding Standards.
 
 `install` will put the script in your home directory and add `batch-encoder` to your Windows PATH.
 
