@@ -6,6 +6,7 @@ import { execute } from "@/command/execute";
 import { generate } from "@/command/generate.ts";
 import { install } from "@/command/install";
 import { update, VERSION } from "@/command/update";
+import { validate } from "@/command/validate";
 
 const program = new Command();
 
@@ -30,6 +31,11 @@ program
     .alias("e")
     .description("Execute commands")
     .action(() => withErrorHandling(() => execute())());
+
+program
+    .command("validate")
+    .description("Verify WebM(s) Against AnimeThemes Encoding Standards")
+    .action(() => withErrorHandling(() => validate())());
 
 program
     .command("install")
@@ -76,6 +82,11 @@ async function selectMode() {
                 name: "Execute commands",
                 description: "Executes commands from file in the current directory in parallel.",
                 value: execute,
+            },
+            {
+                name: "Verify WebM(s) Against AnimeThemes Encoding Standards",
+                description: "Test success/failure does **NOT** guarantee acceptance/rejection of submissions. In some tests, we are determining the correctness of our file properties. In other tests, we are flagging uncommon property values for inspection.",
+                value: validate,
             },
             {
                 name: "Install Batch Encoder",

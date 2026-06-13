@@ -4,6 +4,8 @@ import { promises as fs } from "node:fs";
 import { basename } from "node:path";
 import * as readline from "node:readline";
 
+import { checkEncodingTools } from "@/env";
+
 type ProgressStatus = 
     | "available"
     | "queued"
@@ -952,6 +954,8 @@ function printSummary(jobs: EncodeJob[]): void {
 }
 
 export async function execute(): Promise<void> {
+    await checkEncodingTools();
+
     const workDir = process.cwd();
 
     const files = await checkbox({
