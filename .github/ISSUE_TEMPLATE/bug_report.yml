@@ -1,13 +1,11 @@
 name: Bug report
-about: Create a report to help us improve
-title: ''
+description: Create a report to help us improve
 labels: bug
-assignees: ''
 type: Bug
 body:
   - type: input
     id: script-version
-    attributees:
+    attributes:
       label: Batch Encoder Version
       description: Please provide the full version of the batch encoder you have installed by running (batch-encoder -V).
       placeholder: 1.3.1
